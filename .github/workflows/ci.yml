@@ -29,8 +29,8 @@ jobs:
 
       - name: Save Docker Images
         run: |
-          docker save -o backend.tar task-manager_backend || echo "Failed to save backend.tar"
-          docker save -o frontend.tar task-manager_frontend || echo "Failed to save frontend.tar"
+          docker save -o backend.tar task-manager-backend || echo "Failed to save backend.tar"
+          docker save -o frontend.tar task-manager-frontend || echo "Failed to save frontend.tar"
           docker save -o mysql.tar mysql:8.0 || echo "Failed to save mysql.tar"
 
       - name: Verify Files Exist
