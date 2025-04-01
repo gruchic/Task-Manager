@@ -42,6 +42,7 @@ jobs:
             db/init.sql
       - name: Trigger Jenkins Build
         run: |
-          curl -X POST "http://3.110.158.217:8080/job/Task-Manager-Deploy/build?token=${{ secrets.JENKINS_TOKEN }}" \
-          -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}"
+          
+          curl -v -X POST "http://<jenkins-ec2-public-ip>:8080/job/Task-Manager-Deploy/build?token=${{ secrets.JENKINS_TOKEN }}" \
+            -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}"
 ################3s
