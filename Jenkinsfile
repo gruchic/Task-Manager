@@ -2,23 +2,34 @@ pipeline {
     agent any
     environment {
         EC2_HOST = '3.110.158.217'
-        GITHUB_REPO = 'https://github.com/gruchic/Task-Manager.git'
+        // Use owner/repo format for GitHub API calls
+        GITHUB_REPO = 'gruchic/Task-Manager'
         GITHUB_TOKEN = credentials('github-token')
     }
     stages {
         stage('Download Artifacts') {
             steps {
                 script {
+                    // Construct the API URL correctly using owner/repo
                     def apiUrl = "https://api.github.com/repos/${GITHUB_REPO}/actions/runs"
-                    def response = sh(script: "curl -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v3+json' ${apiUrl}", returnStdout: true).trim()
+                    echo "Fetching workflow runs from: ${apiUrl}"
+                    def response = sh(
+                        script: "curl -s -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v3+json' ${apiUrl}",
+                        returnStdout: true
+                    ).trim()
                     def json = readJSON text: response
                     def latestRunId = json.workflow_runs.find { it.status == 'completed' && it.conclusion == 'success' }?.id
                     if (latestRunId) {
-                        sh "curl -L -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/${GITHUB_REPO}/actions/runs/${latestRunId}/artifacts > artifacts.json"
+                        echo "Latest successful run ID: ${latestRunId}"
+                        sh """
+                            curl -s -L -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v3+json' \
+                            https://api.github.com/repos/${GITHUB_REPO}/actions/runs/${latestRunId}/artifacts > artifacts.json
+                        """
                         def artifactsJson = readJSON file: 'artifacts.json'
                         def artifactUrl = artifactsJson.artifacts.find { it.name == 'docker-images' }?.archive_download_url
                         if (artifactUrl) {
-                            sh "curl -L -H 'Authorization: token ${GITHUB_TOKEN}' -o docker-images.zip ${artifactUrl}"
+                            echo "Found artifact URL: ${artifactUrl}"
+                            sh "curl -s -L -H 'Authorization: token ${GITHUB_TOKEN}' -o docker-images.zip ${artifactUrl}"
                             sh 'unzip -o docker-images.zip'
                         } else {
                             error "No docker-images artifact found"
@@ -38,7 +49,7 @@ pipeline {
                         scp -o StrictHostKeyChecking=no mysql.tar ubuntu@${EC2_HOST}:/home/ubuntu/mysql.tar
                         scp -o StrictHostKeyChecking=no docker-compose.yml ubuntu@${EC2_HOST}:/home/ubuntu/docker-compose.yml
                         scp -o StrictHostKeyChecking=no db/init.sql ubuntu@${EC2_HOST}:/home/ubuntu/init.sql
-                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_HOST} << EOF
+                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_HOST} << 'EOF'
                         docker-compose down || true
                         docker rmi task-manager_backend task-manager_frontend mysql:8.0 || true
                         docker load -i backend.tar
