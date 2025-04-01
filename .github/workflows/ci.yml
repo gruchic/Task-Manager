@@ -19,7 +19,7 @@ jobs:
       - name: Install Frontend Dependencies
         run: cd frontend && npm install && npm run build
       - name: Build Docker Images
-        run: docker-compose build
+        run: docker compose build
       - name: Save Docker Images
         run: |
           docker save -o backend.tar task-manager_backend || echo "Failed to save backend.tar"
@@ -41,9 +41,6 @@ jobs:
             docker-compose.yml
             db/init.sql
       - name: Trigger Jenkins Build
-        uses: appleboy/jenkins-action@v1.1.1
-        with:
-          url: 'http://3.110.158.217:8080'
-          user: ${{ secrets.JENKINS_USER }}
-          token: ${{ secrets.JENKINS_API_TOKEN }}
-          job: 'Task-Manager-Deploy'
+        run: |
+          curl -X POST "http://3.110.158.217:8080/job/Task-Manager-Deploy/build?token=${{ secrets.JENKINS_TOKEN }}" \
+          -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}"
