@@ -1,9 +1,8 @@
 pipeline {
     agent any
     environment {
-        EC2_HOST = '172.31.15.169'  // Replace with Deployment EC2 private IP (e.g., 172.31.2.20)
-        GITHUB_REPO = 'gruchic/Task-Manager'  // Your GitHub repo
-        GITHUB_TOKEN = credentials('github-token')
+        EC2_HOST = '172.31.2.20'  // Replace with Deployment EC2 private IP (e.g., 172.31.2.20)
+        GITHUB_REPO = 'gruchic/Task-Manager'
     }
     stages {
         stage('Download Artifacts') {
@@ -11,15 +10,15 @@ pipeline {
                 withCredentials([string(credentialsId: 'github-token', variable: 'TOKEN')]) {
                     script {
                         def apiUrl = "https://api.github.com/repos/${GITHUB_REPO}/actions/runs"
-                        def response = sh(script: "curl -H 'Authorization: token ${TOKEN}' -H 'Accept: application/vnd.github.v3+json' ${apiUrl}", returnStdout: true).trim()
+                        def response = sh(script: "curl -H \"Authorization: token ${TOKEN}\" -H \"Accept: application/vnd.github.v3+json\" ${apiUrl}", returnStdout: true).trim()
                         def json = readJSON text: response
                         def latestRunId = json.workflow_runs.find { it.status == 'completed' && it.conclusion == 'success' }?.id
                         if (latestRunId) {
-                            sh "curl -L -H 'Authorization: token ${TOKEN}' -H 'Accept: application/vnd.github.v3+json' https://api.github.com/repos/${GITHUB_REPO}/actions/runs/${latestRunId}/artifacts > artifacts.json"
+                            sh "curl -L -H \"Authorization: token ${TOKEN}\" -H \"Accept: application/vnd.github.v3+json\" https://api.github.com/repos/${GITHUB_REPO}/actions/runs/${latestRunId}/artifacts > artifacts.json"
                             def artifactsJson = readJSON file: 'artifacts.json'
                             def artifactUrl = artifactsJson.artifacts.find { it.name == 'docker-images' }?.archive_download_url
                             if (artifactUrl) {
-                                sh "curl -L -H 'Authorization: token ${TOKEN}' -o docker-images.zip ${artifactUrl}"
+                                sh "curl -L -H \"Authorization: token ${TOKEN}\" -o docker-images.zip ${artifactUrl}"
                                 sh 'unzip -o docker-images.zip'
                             } else {
                                 error "No docker-images artifact found"
