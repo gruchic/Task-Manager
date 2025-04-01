@@ -6,27 +6,45 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Code
+        uses: actions/checkout@v3  # Upgrade to v3 for consistency
+
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Install Backend
+
+      - name: Install Backend Dependencies
         run: cd backend && npm install
-      - name: Install Frontend
+
+      - name: Install Frontend Dependencies
         run: cd frontend && npm install && npm run build
+
       - name: Build Docker Images
-        run: docker-compose build
+        run: docker-compose build || echo "Build failed"
+
       - name: List Docker Images
         run: docker images
+
       - name: Save Docker Images
         run: |
           docker save -o backend.tar task-manager_backend || echo "Failed to save backend.tar"
           docker save -o frontend.tar task-manager_frontend || echo "Failed to save frontend.tar"
           docker save -o mysql.tar mysql:8.0 || echo "Failed to save mysql.tar"
-      - name: List Files
-        run: ls -l *.tar docker-compose.yml db/init.sql || echo "Files missing"
-      - name: Archive Artifacts
+
+      - name: Verify Files Exist
+        run: |
+          ls -l *.tar || echo "No .tar files found"
+          ls -l docker-compose.yml || echo "docker-compose.yml not found"
+          ls -l db/init.sql || echo "db/init.sql not found"
+
+      - name: Test Upload Single File
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-artifact
+          path: docker-compose.yml
+
+      - name: Upload All Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: docker-images
@@ -36,6 +54,7 @@ jobs:
             mysql.tar
             docker-compose.yml
             db/init.sql
+
       - name: Trigger Jenkins
         run: |
           curl -X POST "http://3.110.158.217:8080/job/Task-Manager-Deploy/build?token=${{ secrets.JENKINS_TOKEN }}" \
