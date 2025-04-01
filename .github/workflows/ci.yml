@@ -1,7 +1,9 @@
 name: CI Pipeline
+
 on:
   push:
     branches: [ main ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,7 +31,7 @@ jobs:
           ls -l docker-compose.yml || echo "docker-compose.yml not found"
           ls -l db/init.sql || echo "db/init.sql not found"
       - name: Upload All Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-images
           path: |
@@ -38,7 +40,10 @@ jobs:
             mysql.tar
             docker-compose.yml
             db/init.sql
-      - name: Trigger Jenkins
-        run: |
-          curl -X POST "http://3.110.158.217:8080/job/Task-Manager-Deploy/build?token=${{ secrets.JENKINS_TOKEN }}" \
-          -u "${{ secrets.JENKINS_USER }}:${{ secrets.JENKINS_API_TOKEN }}"
+      - name: Trigger Jenkins Build
+        uses: appleboy/jenkins-action@v1.1.1
+        with:
+          url: 'http://3.110.158.217:8080'
+          user: ${{ secrets.JENKINS_USER }}
+          token: ${{ secrets.JENKINS_API_TOKEN }}
+          job: 'Task-Manager-Deploy'
