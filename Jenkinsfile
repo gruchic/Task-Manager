@@ -2,7 +2,6 @@ pipeline {
     agent any
     environment {
         EC2_HOST = '3.110.158.217'
-        // Use owner/repo format for GitHub API calls
         GITHUB_REPO = 'gruchic/Task-Manager'
         GITHUB_TOKEN = credentials('github-token')
     }
@@ -10,32 +9,32 @@ pipeline {
         stage('Download Artifacts') {
             steps {
                 script {
-                    // Construct the API URL for workflow runs
+                    // Construct API URL for workflow runs
                     def apiUrl = "https://api.github.com/repos/${GITHUB_REPO}/actions/runs"
                     echo "Fetching workflow runs from: ${apiUrl}"
                     
-                    // Fetch workflow runs
+                    // Use curl to get the JSON response
                     def response = sh(
                         script: "curl -s -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v3+json' ${apiUrl}",
                         returnStdout: true
                     ).trim()
                     echo "Response from runs API: ${response}"
                     
-                    def json = readJSON text: response
-                    // Find the latest successful run
+                    // Parse JSON using JsonSlurper (built-in to Groovy)
+                    import groovy.json.JsonSlurper
+                    def json = new JsonSlurper().parseText(response)
+                    
                     def latestRunId = json.workflow_runs.find { it.status == 'completed' && it.conclusion == 'success' }?.id
                     if (latestRunId) {
                         echo "Latest successful run ID: ${latestRunId}"
-                        
-                        // Download the artifacts metadata for that run
                         sh """
                             curl -s -L -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v3+json' \
                             https://api.github.com/repos/${GITHUB_REPO}/actions/runs/${latestRunId}/artifacts > artifacts.json
                         """
-                        def artifactsJson = readJSON file: 'artifacts.json'
+                        // Read artifacts.json file using readFile and then parse with JsonSlurper
+                        def artifactsJson = new JsonSlurper().parseText(readFile('artifacts.json'))
                         echo "Artifacts JSON: ${artifactsJson}"
                         
-                        // Look for an artifact named 'docker-images'
                         def artifactUrl = artifactsJson.artifacts.find { it.name == 'docker-images' }?.archive_download_url
                         if (artifactUrl) {
                             echo "Found artifact URL: ${artifactUrl}"
